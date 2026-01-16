@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A.Chess</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+
+    <style>
+        body { overflow: hidden; }
+
+        .chessboard {
+            display: grid;
+            grid-template-columns: repeat(8, minmax(0, 1fr));
+            grid-template-rows: repeat(8, minmax(0, 1fr));
+            width: 400px;
+            height: 400px;
+        }
+
+        .square {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .square.light { background-color: #EED8B0; }
+        .square.dark { background-color: #1A2A3A; }
+
+        .piece {
+            font-size: 36px;
+            cursor: pointer;
+        }
+
+        .piece.white {
+            color: white;
+            filter: drop-shadow(0 0 2px rgba(0, 0, 0, 1));
+        }
+
+        .piece.black { color: black; }
+
+        .flipped { transform: rotate(180deg); }
+        .flipped .piece { transform: rotate(180deg); }
+
+        .glass {
+            background: rgba(2, 6, 23, 0.9);
+            backdrop-filter: blur(10px);
+        }
+
+        .input {
+            background: #020617;
+            border: 1px solid #334155;
+            color: white;
+        }
+
+        .input::placeholder { color: #94a3b8; }
+    </style>
+</head>
+
+<body class="bg-zinc-900">
+
+<!-- LOGO -->
+<img src="/images/a-chess-logo.png"
+     class="fixed top-4 left-4 w-14 h-14 z-[9999] select-none" />
+
+<!-- LOGIN PAGE -->
+<div id="loginPage" class="fixed inset-0 z-50 flex items-center justify-center">
+    <div class="glass w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 gap-8 p-8 rounded-2xl text-white">
+
+        <!-- LEFT -->
+        <div class="flex flex-col items-center justify-center gap-4">
+
+            <h1 class="text-4xl font-bold">A.Chess</h1>
+
+            <!-- Pawn + About Profile -->
+            <div class="flex items-center gap-4">
+                <img src="/images/pawn.png" class="w-36 opacity-90">
+
+                <div class="flex items-center gap-3 bg-black/40 px-3 py-2 rounded-xl">
+                    <img src="/images/amaz.png"
+                         class="w-12 h-12 rounded-full object-cover" />
+                    <div>
+                        <p class="text-sm font-semibold leading-none">
+                            Md Amaz Tanweer
+                        </p>
+                        <div class="flex gap-2 mt-1">
+                            <a href="https://www.instagram.com/amaz_tanweer_01?igsh=eHgweTMxdzg1bWk4&utm_source=qr" target="_blank">
+                                <img src="/images/instagram.png" class="w-4 h-4">
+                            </a>
+                            <a href="https://www.linkedin.com/in/md-amaz-tanweer-877a6a315?utm_source=share&utm_campaign=share_via&utm_content=profile&utm_medium=ios_app" target="_blank">
+                                <img src="/images/linkdin.png" class="w-4 h-4">
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="playAsGuest()"
+                    class="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 rounded-xl font-semibold">
+                Play as Guest
+            </button>
+        </div>
+
+        <!-- RIGHT -->
+        <div>
+            <!-- LOGIN -->
+            <div id="loginBox">
+                <h2 class="text-2xl font-semibold mb-6">Login</h2>
+                <div class="space-y-4">
+                    <input id="loginUsername" class="input w-full p-3 rounded-xl" placeholder="Username">
+                    <input id="loginPassword" class="input w-full p-3 rounded-xl" type="password" placeholder="Password">
+                    <button onclick="loginUser()"
+                            class="w-full p-3 rounded-xl bg-blue-600 hover:bg-blue-700">
+                        Login
+                    </button>
+                </div>
+                <p class="mt-4 text-sm text-slate-400">
+                    Create account?
+                    <span class="text-blue-400 cursor-pointer" onclick="toggleForm()">Register</span>
+                </p>
+            </div>
+
+            <!-- REGISTER -->
+            <div id="registerBox" class="hidden">
+                <h2 class="text-2xl font-semibold mb-6">Create Account</h2>
+
+                <form id="registerForm" class="space-y-4">
+                    <input name="email" class="input w-full p-3 rounded-xl" placeholder="Email" required>
+                    <input name="username" class="input w-full p-3 rounded-xl" placeholder="Username" required>
+                    <input name="password" class="input w-full p-3 rounded-xl" type="password" placeholder="Password" required>
+                    <input class="input w-full p-3 rounded-xl" type="password" placeholder="Confirm Password" required>
+                    <button type="submit"
+                            class="w-full p-3 rounded-xl bg-emerald-600 hover:bg-emerald-700">
+                        Create Account
+                    </button>
+                </form>
+
+                <p class="mt-4 text-sm text-slate-400">
+                    Already have account?
+                    <span class="text-blue-400 cursor-pointer" onclick="toggleForm()">Login</span>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- GAME PAGE -->
+<div id="gamePage"
+     class="w-full h-screen flex flex-col items-center justify-center hidden gap-3">
+
+    <!-- PLAYER PROFILE (TOP OF BOARD) -->
+    <div class="glass px-4 py-2 rounded-xl text-white text-center">
+        <p class="text-xs text-slate-400">Player</p>
+        <p id="playerName" class="text-lg font-semibold">Guest</p>
+    </div>
+
+    <p id="matchStatus" class="text-slate-300 text-sm">
+        Connecting…
+    </p>
+
+    <div class="chessboard w-96 h-96"></div>
+</div>
+
+<script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+<script src="js/chessgame.js"></script>
+
+<script>
+let currentUser = "Guest";
+
+const loginBox = document.getElementById("loginBox");
+const registerBox = document.getElementById("registerBox");
+
+function toggleForm() {
+    loginBox.classList.toggle("hidden");
+    registerBox.classList.toggle("hidden");
+}
+
+function playAsGuest() {
+    currentUser = "Guest";
+    startGame();
+}
+
+document.getElementById("registerForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const data = Object.fromEntries(new FormData(e.target).entries());
+
+    const res = await fetch("/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+    });
+
+    const result = await res.json();
+    alert(result.message);
+    if (res.ok) toggleForm();
+});
+
+async function loginUser() {
+    const username = loginUsername.value;
+    const password = loginPassword.value;
+
+    const res = await fetch("/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+    });
+
+    const result = await res.json();
+    alert(result.message);
+
+    if (res.ok) {
+        currentUser = username;
+        startGame();
+    }
+}
+
+function startGame() {
+    document.getElementById("loginPage").classList.add("hidden");
+    document.getElementById("gamePage").classList.remove("hidden");
+    document.getElementById("playerName").innerText = currentUser;
+    if (window.startChessGame) window.startChessGame();
+}
+</script>
+
+</body>
+</html>
