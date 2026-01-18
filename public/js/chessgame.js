@@ -13,6 +13,7 @@ function initBoard() {
   boardElement = document.querySelector(".chessboard");
   if (!boardElement) return;
   renderBoard();
+  initTouchSupport();
 }
 
 /* =========================
@@ -52,6 +53,7 @@ const renderBoard = () => {
         const isMyTurn = chess.turn() === playerRole;
         pieceEl.draggable = isMyTurn && square.color === playerRole;
 
+        // DESKTOP DRAG EVENTS
         pieceEl.addEventListener("dragstart", () => {
           draggedPiece = pieceEl;
           sourceSquare = { row: r, col: c };
@@ -65,11 +67,10 @@ const renderBoard = () => {
         squareEl.appendChild(pieceEl);
       }
 
+      // DESKTOP DROP EVENTS
       squareEl.addEventListener("dragover", e => e.preventDefault());
-
       squareEl.addEventListener("drop", () => {
         if (!draggedPiece || !sourceSquare) return;
-
         handleMove(sourceSquare, {
           row: Number(squareEl.dataset.row),
           col: Number(squareEl.dataset.col),
@@ -95,12 +96,11 @@ const handleMove = (from, to) => {
 };
 
 /* =========================
-   SOCKET EVENTS (ORIGINAL)
+   SOCKET EVENTS
 ========================= */
 socket.on("playerRole", role => {
   playerRole = role;
 
-  /* 🔹 ADD: match started status */
   const status = document.getElementById("matchStatus");
   if (status) status.innerText = "Match started";
 
@@ -121,14 +121,48 @@ socket.on("invalidMove", () => {
   renderBoard();
 });
 
-/* =========================
-   🔹 ADDED SOCKET STATUS
-   (NO LOGIC CHANGE)
-========================= */
 socket.on("waiting", () => {
   const status = document.getElementById("matchStatus");
   if (status) status.innerText = "Waiting for opponent…";
 });
+
+/* =========================
+   TOUCH SUPPORT FOR MOBILE
+========================= */
+let touchStartSquare = null;
+
+function initTouchSupport() {
+  if (!boardElement) return;
+
+  boardElement.addEventListener("touchstart", e => {
+    const target = e.target.closest(".piece, .square");
+    if (!target) return;
+
+    const squareEl = target.classList.contains("square") ? target : target.parentElement;
+    const row = Number(squareEl.dataset.row);
+    const col = Number(squareEl.dataset.col);
+
+    const piece = target.classList.contains("piece") ? target : null;
+
+    // Only allow touching your own pieces
+    if (piece && piece.classList.contains(playerRole === "w" ? "white" : "black")) {
+      touchStartSquare = { row, col };
+    }
+  });
+
+  boardElement.addEventListener("touchend", e => {
+    if (!touchStartSquare) return;
+
+    const touch = e.changedTouches[0];
+    const dropEl = document.elementFromPoint(touch.clientX, touch.clientY);
+    const squareEl = dropEl.closest(".square");
+    if (!squareEl) return;
+
+    const to = { row: Number(squareEl.dataset.row), col: Number(squareEl.dataset.col) };
+    handleMove(touchStartSquare, to);
+    touchStartSquare = null;
+  });
+}
 
 /* =========================
    PAGE & GAME START HOOKS
@@ -137,7 +171,6 @@ document.addEventListener("DOMContentLoaded", () => {
   initBoard();
 });
 
-/* called after login / guest */
 window.startChessGame = () => {
   const status = document.getElementById("matchStatus");
   if (status) status.innerText = "Connecting…";
